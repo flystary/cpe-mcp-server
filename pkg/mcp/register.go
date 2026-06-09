@@ -9,6 +9,10 @@ import (
 	"sync"
 )
 
+type MethodLister interface {
+	SupportedMethods() []string
+}
+
 type Service interface {
 	Name() string
 	ReadResource(ctx context.Context, subPath string) (interface{}, error)

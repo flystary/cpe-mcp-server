@@ -39,7 +39,3 @@ type ToolResponse struct {
 	Message   string `json:"message,omitempty"`
 	ErrorCode string `json:"error_code,omitempty"`
 }
-
-type MethodLister interface {
-	SupportedMethods() []string
-}
