@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 )
@@ -102,4 +103,31 @@ func dispatchGlobalTool(ctx context.Context, srvName string, rawArgs json.RawMes
 		return nil, err
 	}
 	return srv.ExecuteTool(ctx, baseArgs.Action, rawArgs)
+}
+
+func DumpRegistrySnapshot() {
+	globalRegistry.mu.RLock()
+	defer globalRegistry.mu.RUnlock()
+
+	log.Printf("[INIT] (Total Services: %d)", len(globalRegistry.services))
+
+	// 打印已挂载的 业务Service
+	for name, srv := range globalRegistry.services {
+		log.Printf("  ► [Service] %-12s -> 状态: ONLINE", strings.ToUpper(name))
+		if lister, ok := srv.(MethodLister); ok {
+			methods := lister.SupportedMethods()
+			for _, m := range methods {
+				log.Printf("     └── ⚙️  [Action] %s", m)
+			}
+		} else {
+			log.Println("     └── ⚠️  [Action] 未宣告支持的具体方法")
+		}
+	}
+
+	log.Printf("[INIT] (Total Tools: %d)", len(globalRegistry.tools))
+
+	// 打印核心Tool 列表
+	for _, tool := range globalRegistry.tools {
+		log.Printf("  ⚙️  [Tool]    %-20s | 描述: %s", tool.Name, tool.Description)
+	}
 }

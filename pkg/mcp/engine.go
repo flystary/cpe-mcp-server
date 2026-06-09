@@ -5,9 +5,21 @@ import (
 	"encoding/json"
 )
 
-type MCPEngine struct{}
+type MCPEngine struct {
+	debug bool
+}
 
-func NewEngine() *MCPEngine { return &MCPEngine{} }
+func NewEngine(debug bool) *MCPEngine {
+	engine := &MCPEngine{
+		debug: debug,
+	}
+
+	if engine.debug {
+		DumpRegistrySnapshot()
+	}
+
+	return engine
+}
 
 func (e *MCPEngine) ProcessMessage(ctx context.Context, payload []byte) ([]byte, error) {
 	var req JSONRPCREquest
@@ -44,5 +56,4 @@ func (e *MCPEngine) ProcessMessage(ctx context.Context, payload []byte) ([]byte,
 	}
 
 	return json.Marshal(response)
-
 }
