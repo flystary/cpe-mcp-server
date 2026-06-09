@@ -2,6 +2,7 @@ package netutil
 
 import (
 	"fmt"
+	"math/bits"
 	"net/netip"
 )
 
@@ -19,13 +20,17 @@ func ParseNetmaskToBits(maskStr string) (int, error) {
 	bytes := addr.As4()
 	ones := 0
 	// 逐个字节统计连续的 1 的个数
+	// for _, b := range bytes {
+	// 	for b > 0 {
+	// 		if b&1 == 1 {
+	// 			ones++
+	// 		}
+	// 		b >>= 1
+	// 	}
+	// }
+
 	for _, b := range bytes {
-		for b > 0 {
-			if b&1 == 1 {
-				ones++
-			}
-			b >>= 1
-		}
+		ones += bits.OnesCount8(b)
 	}
 
 	// 校验子网掩码合法性（必须是连续的 1，比如 255.255.128.0 的 ones 是 17）
