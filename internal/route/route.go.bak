@@ -1,0 +1,173 @@
+package route
+
+import (
+	"context"
+	"cpe-mcp-server/pkg/mcp"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
+)
+
+type Registry struct {
+	mu     sync.RWMutex
+	assets map[string]Factory
+}
+
+var (
+	registryMu    sync.Mutex
+	assetRegistry = make(map[string]Factory)
+)
+
+func NewRegistry() *Registry {
+	return &Registry{
+		assets: make(map[string]Factory),
+	}
+}
+
+func (r *Registry) Register(name string, enabled bool, f Factory) {
+	if !enabled {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	key := strings.ToLower(name)
+
+	if _, ok := r.assets[key]; ok {
+		panic(fmt.Sprintf("route asset already exists: %s", key))
+	}
+
+	r.assets[key] = f
+}
+
+func NewRouteService() mcp.Service {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	ctrl := &RouteController{assets: make(map[string]AssetFactory)}
+	for name, factory := range assetRegistry {
+		ctrl.assets[name] = factory
+	}
+	return ctrl
+}
+
+func (c *RouteController) Name() string { return "route" }
+
+// GetSchema 动态向北向暴露当前支持的路由大类（如 static、bgp）
+func (c *RouteController) GetSchema() interface{} {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	var typeList []string
+	actionMap := make(map[string]bool)
+
+	for name, factory := range c.assets {
+		typeList = append(typeList, name)
+		instance := factory()
+		for _, act := range instance.Actions() {
+			actionMap[strings.ToLower(act)] = true
+		}
+	}
+
+	var totalActions []string
+	for act := range actionMap {
+		totalActions = append(totalActions, act)
+	}
+
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"routing_type": map[string]interface{}{"type": "string", "enum": typeList},
+			"action":       map[string]interface{}{"type": "string", "enum": totalActions},
+			"arguments":    map[string]string{"type": "object"},
+		},
+		"required": []string{"routing_type", "action", "arguments"},
+	}
+}
+
+func (c *RouteController) ReadResource(ctx context.Context, uri string) (interface{}, error) {
+	if !strings.HasPrefix(uri, "route://") {
+		return nil, fmt.Errorf("invalid route resource uri specification: %s", uri)
+	}
+
+	routingType := strings.TrimPrefix(uri, "route://")
+
+	c.mu.RLock()
+	factory, exists := c.assets[strings.ToLower(routingType)]
+	c.mu.RUnlock()
+	if !exists {
+		return nil, fmt.Errorf("routing asset '%s' is offline or uninitialized", routingType)
+	}
+
+	instance := factory()
+
+	snapshot, err := instance.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resource query kernel telemetry failed: %w", err)
+	}
+
+	return snapshot, nil
+}
+
+// ExecuteTool
+func (c *RouteController) ExecuteTool(ctx context.Context, action string, rawArgs json.RawMessage) (interface{}, error) {
+	var envelope struct {
+		RoutingType string          `json:"routing_type"`
+		Arguments   json.RawMessage `json:"arguments"`
+	}
+	if err := json.Unmarshal(rawArgs, &envelope); err != nil {
+		return nil, fmt.Errorf("invalid envelope data: %w", err)
+	}
+
+	c.mu.RLock()
+	factory, exists := c.assets[strings.ToLower(envelope.RoutingType)]
+	c.mu.RUnlock()
+	if !exists {
+		return nil, fmt.Errorf("routing type '%s' offline", envelope.RoutingType)
+	}
+
+	instance := factory()
+
+	if len(envelope.Arguments) > 0 {
+		if err := json.Unmarshal(envelope.Arguments, instance); err != nil {
+			return nil, fmt.Errorf("bind parameters to %s failed: %w", envelope.RoutingType, err)
+		}
+	}
+
+	act := strings.ToLower(action)
+
+	if act == "show" || act == "list" {
+		return instance.List(ctx)
+	}
+
+	if err := instance.Dispatch(ctx, act); err != nil {
+		return nil, err
+	}
+
+	return map[string]string{"status": "success"}, nil
+}
+
+// SupportedMethods
+func (c *RouteController) SupportedMethods() []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	actionMap := make(map[string]bool)
+	for name, factory := range c.assets {
+		fmt.Println(name)
+		instance := factory()
+		for _, act := range instance.Actions() {
+			// 将资产名与动作组合起来，格式化为更直观的拓扑黑话
+			// 例如: "static -> apply", "bgp -> show"
+			key := fmt.Sprintf("%s -> %s", strings.ToLower(name), strings.ToLower(act))
+			actionMap[key] = true
+		}
+	}
+
+	var totalActions []string
+	for act := range actionMap {
+		totalActions = append(totalActions, act)
+	}
+	return totalActions
+}

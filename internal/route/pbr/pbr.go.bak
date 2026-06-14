@@ -1,0 +1,72 @@
+package pbr
+
+import (
+	"context"
+	. "cpe-mcp-server/internal"
+	. "cpe-mcp-server/internal/route"
+	"fmt"
+)
+
+var defaultEnable = true
+
+var _ RouteHandler = (*Pbr)(nil)
+var _ Rollable = (*Pbr)(nil)
+
+func init() {
+	RegisterRouting("pbr", defaultEnable, NewPbr)
+}
+
+type Pbr struct {
+	SourceIP   string `json:"source_ip"`
+	SkbMark    int    `json:"skb_mark"`
+	TableID    int    `json:"table_id"`
+	Preference int    `json:"preference"`
+}
+
+func NewPbr() RouteHandler { return &Pbr{} }
+
+func (p *Pbr) Name() string { return "pbr" }
+
+func (p *Pbr) Actions() []string {
+	return []string{"apply", "remove", "show"}
+}
+
+func (p *Pbr) Dispatch(ctx context.Context, action string) error {
+	switch action {
+	case "apply", "add", "set":
+		return p.ApplyRoute(ctx)
+	case "remove", "del":
+		return p.RemoveRoute(ctx)
+	default:
+		return fmt.Errorf("unimplemented write action '%s' for pbr", action)
+	}
+}
+
+func (p *Pbr) ApplyRoute(ctx context.Context) error {
+	// prefStr := strconv.Itoa(p.Preference)
+	// tableStr := strconv.Itoa(p.TableID)
+
+	return nil
+}
+
+func (p *Pbr) RemoveRoute(ctx context.Context) error {
+	return nil
+}
+
+// Show 显示
+func (p *Pbr) List(ctx context.Context) (interface{}, error) {
+
+	return map[string]interface{}{
+		"name": p.Name(),
+	}, nil
+}
+
+// Save 保存
+func (p *Pbr) Save(target string) error {
+	return nil
+}
+
+// Roll 回退
+func (p *Pbr) Roll(target string) error {
+	return nil
+}

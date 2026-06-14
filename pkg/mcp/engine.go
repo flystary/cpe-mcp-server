@@ -5,55 +5,78 @@ import (
 	"encoding/json"
 )
 
-type MCPEngine struct {
+type Engine struct {
+	reg   *Registry
 	debug bool
 }
 
-func NewEngine(debug bool) *MCPEngine {
-	engine := &MCPEngine{
+func NewEngine(reg *Registry, debug bool) *Engine {
+	return &Engine{
+		reg:   reg,
 		debug: debug,
 	}
-
-	if engine.debug {
-		DumpRegistrySnapshot()
-	}
-
-	return engine
 }
 
-func (e *MCPEngine) ProcessMessage(ctx context.Context, payload []byte) ([]byte, error) {
-	var req JSONRPCREquest
+func (e *Engine) ProcessMessage(
+	ctx context.Context,
+	payload []byte,
+) ([]byte, error) {
+
+	var req JSONRPCRequest
 	if err := json.Unmarshal(payload, &req); err != nil {
 		return nil, err
 	}
 
-	var res interface{}
-	var rpcErr *RPCError
+	var (
+		result any
+		rpcErr *RPCError
+	)
 
 	switch req.Method {
+
+	// ======================
+	// tools/list
+	// ======================
 	case "tools/list":
-		res = map[string]interface{}{"tools": GetToolList()}
+		result = map[string]any{
+			"tools": e.reg.ToolList(),
+		}
+
+	// ======================
+	// tools/call
+	// ======================
 	case "tools/call":
-		var callArgs struct {
+
+		var call struct {
 			Name      string          `json:"name"`
 			Arguments json.RawMessage `json:"arguments"`
 		}
-		_ = json.Unmarshal(req.Params, &callArgs)
-		result, err := ExecuteTool(ctx, callArgs.Name, callArgs.Arguments)
-		if err != nil {
-			rpcErr = &RPCError{Code: 500, Messgae: err.Error()}
-		} else {
-			res = result
+
+		if err := json.Unmarshal(req.Params, &call); err != nil {
+			rpcErr = &RPCError{-32602, err.Error(), nil}
+			break
 		}
+
+		tc := NewToolContext(ctx, req.ID)
+
+		res, err := e.reg.ExecuteTool(tc, call.Name, call.Arguments)
+		if err != nil {
+			rpcErr = &RPCError{500, err.Error(), nil}
+			break
+		}
+
+		result = res
+
 	default:
-		rpcErr = &RPCError{Code: -32601, Messgae: "Method not found"}
-	}
-	response := JSONRPCResponse{JSONRPC: "2.0", ID: req.ID}
-	if rpcErr != nil {
-		response.Error = rpcErr
-	} else {
-		response.Result = res
+		rpcErr = &RPCError{-32601, "method not found", nil}
 	}
 
-	return json.Marshal(response)
+	resp := JSONRPCResponse{
+		JSONRPC: "2.0",
+		ID:      req.ID,
+		Result:  result,
+		Error:   rpcErr,
+	}
+
+	return json.Marshal(resp)
 }
