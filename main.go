@@ -1,5 +1,20 @@
 package main
 
+/*调用链
+MCP Engine
+    ↓
+Registry.ExecuteTool()
+    ↓
+RouteService.Dispatch()
+    ↓
+RouteEngine.Dispatch()
+    ↓
+Static.Validate()
+    ↓
+Static.Dispatch()
+    ↓
+Static.apply()
+*/
 import (
 	"flag"
 	"log"
@@ -21,14 +36,14 @@ func main() {
 	flag.Parse()
 	mode := strings.ToLower(strings.TrimSpace(*modePtr))
 	routeEngine := route.NewEngine()
+	service := route.NewService(routeEngine)
 	reg := mcp.NewRegistry()
 	reg.RegisterService(
 		"route",
 		true,
-		func() mcp.Service {
-			return route.NewService(routeEngine)
-		},
+		service.New,
 	)
+	reg.Dump()
 	engine := mcp.NewEngine(reg, true)
 
 	switch mode {

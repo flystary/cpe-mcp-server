@@ -87,7 +87,7 @@ func (s *Static) Validate(action string, args []byte) (map[string]any, error) {
 	return m, nil
 }
 
-func (s *Static) Dispatch(ctx context.Context, action string, args json.RawMessage) error {
+func (s *Static) Dispatch(ctx context.Context, action string, args []byte) error {
 	var spec StaticRouteSpec
 	if err := json.Unmarshal(args, &spec); err != nil {
 		return err

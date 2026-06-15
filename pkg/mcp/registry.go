@@ -8,14 +8,14 @@ import (
 	"sync"
 )
 
+type ServiceFactory func() Service
+
 type Registry struct {
 	mu sync.RWMutex
 
 	services map[string]Service
 	tools    map[string]*Tool
 }
-
-type ServiceFactory func() Service
 
 func NewRegistry() *Registry {
 	return &Registry{
@@ -57,7 +57,7 @@ func (r *Registry) RegisterService(
 				return nil, err
 			}
 
-			return svc.Dispatch(
+			return svc.Execute(
 				ctx.Context,
 				req.Action,
 				args,
@@ -105,6 +105,7 @@ func (r *Registry) RegisterTool(def ToolDefinition, handler ToolHandler) {
 		Handler: handler,
 	}
 }
+
 func (r *Registry) Dump() {
 
 	r.mu.RLock()
@@ -115,14 +116,12 @@ func (r *Registry) Dump() {
 		len(r.services),
 		len(r.tools),
 	)
-
 	for name := range r.services {
 		log.Printf(
 			"  service: %s",
 			name,
 		)
 	}
-
 	for name := range r.tools {
 		log.Printf(
 			"  tool: %s",

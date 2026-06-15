@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"cpe-mcp-server/pkg/mcp"
 	"encoding/json"
 	"fmt"
 )
@@ -14,6 +15,10 @@ func NewService(e *Engine) *Service {
 	return &Service{
 		engine: e,
 	}
+}
+
+func (s *Service) New() mcp.Service {
+	return NewService(s.engine)
 }
 
 func (s *Service) Name() string {
@@ -73,19 +78,40 @@ func (s *Service) ReadResource(
 
 	return s.engine.List(ctx, protocol)
 }
+
 func (s *Service) Schema() map[string]any {
 	return map[string]any{
 		"type": "object",
 	}
 }
 
-func (s *Service) Dispatch(
+func (s *Service) Actions() []string {
+	return s.Actions()
+}
+
+func (s *Service) Execute(
 	ctx context.Context,
 	action string,
-	args json.RawMessage,
+	args []byte,
 ) (any, error) {
+	var req struct {
+		Protocol string `json:"protocol"`
+	}
+	if err := json.Unmarshal(
+		args,
+		&req,
+	); err != nil {
+		return nil, err
+	}
 
-	err := s.engine.Dispatch(ctx, action, args)
+	if req.Protocol == "" {
+		return nil,
+			fmt.Errorf(
+				"missing protocol",
+			)
+	}
+
+	err := s.engine.Dispatch(ctx, req.Protocol, action, args)
 	if err != nil {
 		return nil, err
 	}

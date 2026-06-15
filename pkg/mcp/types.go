@@ -71,20 +71,20 @@ type ToolResponse struct {
 // Service
 type Service interface {
 	Name() string
+	Actions() []string
 
 	Schema() map[string]interface{}
 
-	Dispatch(
+	Execute(
 		ctx context.Context,
 		action string,
-		args json.RawMessage,
+		args []byte,
 	) (interface{}, error)
 }
 
 type ResourceProvider interface {
 	ReadResource(ctx context.Context, path string) (interface{}, error)
 }
-
 
 // NewToolContext 创建标准上下文（推荐统一入口）
 func NewToolContext(ctx context.Context, requestID any) ToolContext {

@@ -22,13 +22,13 @@ func (e *Engine) Dispatch(
 	args []byte,
 ) error {
 
-	// 1. 找 module
+	// 找 module
 	mod, ok := e.modules[protocol]
 	if !ok {
 		return fmt.Errorf("module not found: %s", protocol)
 	}
 
-	// 2. schema check（动作是否存在）
+	// schema check（动作是否存在）
 	schema := mod.Schema()
 
 	act, ok := schema.Actions[action]
@@ -38,19 +38,19 @@ func (e *Engine) Dispatch(
 
 	_ = act // 这里保留用于未来扩展（字段级校验/策略）
 
-	// 3. module validate（真正校验逻辑）
+	// module validate（真正校验逻辑）
 	validated, err := mod.Validate(action, args)
 	if err != nil {
 		return fmt.Errorf("validate failed: %w", err)
 	}
 
-	// 4. 标准化 payload（避免 handler 再解析乱结构）
+	// 标准化 payload（避免 handler 再解析乱结构）
 	payload, err := json.Marshal(validated)
 	if err != nil {
 		return fmt.Errorf("marshal validated args failed: %w", err)
 	}
 
-	// 5. 执行
+	// 执行
 	return mod.Dispatch(ctx, action, payload)
 }
 

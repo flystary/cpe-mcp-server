@@ -1,9 +1,6 @@
 package route
 
-import (
-	"context"
-	"encoding/json"
-)
+import "context"
 
 type Route struct {
 	CIDR     string
@@ -21,7 +18,7 @@ type Actioner interface {
 }
 
 type Controller interface {
-	Dispatch(ctx context.Context, action string, args json.RawMessage) error
+	Dispatch(ctx context.Context, action string, args []byte) error
 }
 
 type Reader interface {
