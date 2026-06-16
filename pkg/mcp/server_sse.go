@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -54,7 +55,7 @@ func (s *SseServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		s.mu.Lock()
 		delete(s.sessions, sessionID)
-		close(ch)
+		// close(ch)
 		s.mu.Unlock()
 	}()
 
@@ -87,8 +88,8 @@ func (s *SseServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func (s *SseServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 
+func (s *SseServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 	payload, _ := io.ReadAll(r.Body)
 
 	sessionID := r.URL.Query().Get("id")
@@ -96,32 +97,50 @@ func (s *SseServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 		sessionID = "default"
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
+	taskCtx, taskCancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer taskCancel()
+
+	// 提前读取 session，判断会话是否仍存活
+	s.mu.RLock()
+	ch, active := s.sessions[sessionID]
+	s.mu.RUnlock()
+
+	if !active {
+		http.Error(w, "session expired or inactive", http.StatusBadRequest)
+		return
+	}
 
 	// async execute
-	go func() {
+	go func(targetChan chan []byte, ctx context.Context, cancel context.CancelFunc) {
+		defer func() {
+			cancel()
+			if rec := recover(); rec != nil {
+				log.Printf("捕获异常: %v", rec)
+			}
+		}()
 
 		resp, err := s.engine.ProcessMessage(ctx, payload)
-
 		if err != nil {
-			resp = []byte(fmt.Sprintf(`{"error":"%s"}`, err.Error()))
+			resp = []byte(fmt.Sprintf(`{"jsonrpc":"2.0","error":{"code":500,"message":"%s"}}`, err.Error()))
 		}
 
 		s.mu.RLock()
-		ch, ok := s.sessions[sessionID]
+		_, stillExist := s.sessions[sessionID]
 		s.mu.RUnlock()
 
-		if !ok {
+		if !stillExist {
+			// 此时长连接已断开，会话已销毁，直接安全退出，避免向可能关闭的通道写数据
 			return
 		}
 
 		select {
-		case ch <- resp:
+		case targetChan <- resp:
+		case <-ctx.Done():
+			// 处理超时
 		default:
 			// drop if slow client
 		}
-	}()
+	}(ch, taskCtx, taskCancel)
 
 	w.WriteHeader(http.StatusAccepted)
 }

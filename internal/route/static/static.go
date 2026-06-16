@@ -33,6 +33,11 @@ type Static struct{}
 
 func NewStatic() route.RouteHandler { return &Static{} }
 
+// 微内核自动注册机制
+func init() {
+	route.Register("static", NewStatic)
+}
+
 func (p *Static) Name() string { return "static" }
 
 func (p *Static) Actions() []string {
@@ -72,7 +77,8 @@ func (s *Static) Validate(action string, args []byte) (map[string]any, error) {
 		}
 
 	case "show":
-		return map[string]any{}, nil
+		break
+		// return map[string]any{}, nil
 
 	default:
 		return nil, fmt.Errorf("unknown action: %s", action)
@@ -80,7 +86,6 @@ func (s *Static) Validate(action string, args []byte) (map[string]any, error) {
 
 	// struct → map（统一流转）
 	b, _ := json.Marshal(spec)
-
 	var m map[string]any
 	_ = json.Unmarshal(b, &m)
 
@@ -100,10 +105,9 @@ func (s *Static) Dispatch(ctx context.Context, action string, args []byte) error
 	case "remove":
 		s.remove(ctx, spec)
 	case "show":
-		s.show(ctx, spec)
-
+		s.show(ctx)
 	default:
-		return fmt.Errorf("unknown action")
+		return fmt.Errorf("unknown action: %s", action)
 	}
 
 	return nil
@@ -161,7 +165,7 @@ func (s *Static) apply(ctx context.Context, spec StaticRouteSpec) error {
 		return err
 	}
 
-	// 6. 持久化落盘与状态同步
+	// 持久化落盘与状态同步
 	_ = os.MkdirAll(cliConfDir, 0755)
 	content := fmt.Sprintf("%s %s %t %s\n", cidr, finalNexthop, spec.Track, spec.Interface)
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
@@ -202,7 +206,8 @@ func (s *Static) remove(ctx context.Context, spec StaticRouteSpec) error {
 	return os.Remove(filepath.Join(cliConfDir, fmt.Sprintf("%s.%s", network, spec.Netmask)))
 }
 
-func (s *Static) show(ctx context.Context, spec StaticRouteSpec) error {
+func (s *Static) show(ctx context.Context) error {
+
 	fmt.Println("show static routes")
 	return nil
 }
@@ -275,7 +280,8 @@ func (s *Static) Schema() route.Schema {
 					{Name: "destination", Type: route.String, Required: true},
 					{Name: "netmask", Type: route.String, Required: true},
 					{Name: "nexthop", Type: route.String, Required: true},
-					{Name: "interface", Type: route.String},
+					{Name: "interface", Type: route.String, Required: false},
+					{Name: "metric", Type: route.Int, Required: false},
 				},
 			},
 			"remove": {
@@ -283,6 +289,8 @@ func (s *Static) Schema() route.Schema {
 				Fields: []route.Field{
 					{Name: "destination", Type: route.String, Required: true},
 					{Name: "netmask", Type: route.String, Required: true},
+					{Name: "nexthop", Type: route.String, Required: true},
+					{Name: "interface", Type: route.String, Required: false},
 				},
 			},
 		},

@@ -78,7 +78,7 @@ type Service interface {
 	Execute(
 		ctx context.Context,
 		action string,
-		args []byte,
+		args json.RawMessage,
 	) (interface{}, error)
 }
 
