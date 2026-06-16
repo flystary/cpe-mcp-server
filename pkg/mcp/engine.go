@@ -11,17 +11,18 @@ type Engine struct {
 }
 
 func NewEngine(reg *Registry, debug bool) *Engine {
-	return &Engine{
+	engine := &Engine{
 		reg:   reg,
 		debug: debug,
 	}
+
+	if engine.debug == true {
+		engine.reg.Dump()
+	}
+	return engine
 }
 
-func (e *Engine) ProcessMessage(
-	ctx context.Context,
-	payload []byte,
-) ([]byte, error) {
-
+func (e *Engine) ProcessMessage(ctx context.Context, payload []byte) ([]byte, error) {
 	var req JSONRPCRequest
 	if err := json.Unmarshal(payload, &req); err != nil {
 		return nil, err

@@ -52,11 +52,9 @@ func main() {
 
 	// 注入原子工具
 	tools.Setup(reg)
-	// 打印
-	reg.Dump()
 
 	// 实例化总线消息引擎
-	engine := mcp.NewEngine(reg, true)
+	engine := mcp.NewEngine(reg, debug)
 
 	switch mode {
 	case "cli":

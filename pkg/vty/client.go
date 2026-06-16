@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrTimeout        = errors.New("vty socket read timeout")
-	ErrConfigRejected = errors.New("vty engine rejected configuration commands")
+	ErrConfigRejected  = errors.New("vty engine rejected configuration commands")
 )
 
 // vtyClient
