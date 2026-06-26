@@ -10,12 +10,10 @@ func TestSchemaNode_FluentChain(t *testing.T) {
 	schema := NewServiceSchema("security_gateway", "工业边缘安全网关控制面")
 	params := NewObjectNode("params", "业务入参总线")
 	params.
-		// 📂 击穿测试点 A：标准对象下钻与闭合
 		AddObject("nat_policy", "NAT地址转换规则", false).
 			AddField("outside_ip", "string", "公网物理出口IP", true).
 			AddField("inside_ip", "string", "内网目标主机IP", true).
-		End(). // ↩️ 成功返回到 params 节点
-
+		End().
 		AddArray("acl_rules", "安全拦截流水线", nil, true).
 			AddField("priority", "int", "匹配规则优先级", true).
 			AddField("action", "string", "策略动作: accept/drop", true).

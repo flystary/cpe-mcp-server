@@ -1,6 +1,10 @@
 package mcp
 
-import "strings"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 type SchemaNode struct {
 	Name        string                 `json:"-"`
@@ -158,4 +162,14 @@ func (s *ServiceSchema) ToDumpExtensions() map[string]any {
 		return params.ToMap()
 	}
 	return nil
+}
+
+func PrintMap(m map[string]any) {
+	bytes, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		fmt.Printf("⚠️ [错误] 完整 Map 序列化失败: %v\n", err)
+		return
+	}
+
+	fmt.Println(string(bytes))
 }
