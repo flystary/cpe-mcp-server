@@ -1,0 +1,37 @@
+name: "global_acceleration_intent"
+description: "一键拉起跨国混合云专线并实施安全分流意图"
+
+services:
+  # 阶段 1: 拉起加密隧道
+  tunnel:
+    type: "wireguard"
+    action: "add"
+    params:
+      endpoint: "202.96.128.1:51820"
+      public_key: "xX5B...NzQ="
+      local_ip: "10.0.0.2/30"
+
+  # 阶段 2: 实施出口源地址转换进行伪装
+  nat:
+    type: "snat"
+    action: "add"
+    params:
+      lan_net: "192.168.10.0/24"
+      out_interface: "wg0"
+
+  # 阶段 3: 数据面精确强制分流
+  route:
+    type: "static"
+    action: "add"
+    params:
+      dst_cidr: "172.16.0.0/12"
+      interface: "wg0"
+
+  # 阶段 4: 限制地址段使用
+  acl:
+    type: ""
+    action: "add"
+    params:
+      dst_cidr: "172.17.0.0/12"
+      interface: "wg0"
+      action: "drop"

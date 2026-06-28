@@ -25,8 +25,8 @@ import (
 	"cpe-mcp-server/internal/route"
 	_ "cpe-mcp-server/internal/route/static" // auto register static
 	"cpe-mcp-server/pkg/mcp"
-	"cpe-mcp-server/tools"
-	_ "cpe-mcp-server/tools"
+	"cpe-mcp-server/pkg/mcp/tools"
+	_ "cpe-mcp-server/pkg/mcp/tools"
 )
 
 var debug = true

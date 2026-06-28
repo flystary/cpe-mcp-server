@@ -1,4 +1,4 @@
-# CPE MCP Server - 边缘路由控制总线
+# CPE MCP Server
 
 `cpe-mcp-server` 是一款面向下一代高可靠 SASE/SD-WAN 边缘网关的 **Model Context Protocol (MCP)** 服务端实现。
 系统采用基于元数据驱动的微内核插件架构（Micro-kernel Architecture），将北向大模型工具契约（JSON Schema）与南向底盘物理驱动（FRR Zebra VTY / Netlink）彻底解耦，在保障极致高并发安全的同时，原生交付了边缘本地防失联自愈（Rollback）与掉电安全（Physical Save）能力。
