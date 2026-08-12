@@ -114,3 +114,25 @@ func normalizeRequestID(id any) string {
 		return fmt.Sprintf("%v", v)
 	}
 }
+
+// RPCHeader 用于提前抽离 JSON-RPC 请求的关键头信息
+type RPCHeader struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      json.RawMessage `json:"id,omitempty"`
+	Method  string          `json:"method"`
+}
+
+// IsNotification 判断是否为无需响应的 Notification 请求
+func (h *RPCHeader) IsNotification() bool {
+	return len(h.ID) == 0 || string(h.ID) == "null"
+}
+
+// ParseID 解析出原生 id 结构 (string, number 或 nil)
+func (h *RPCHeader) ParseID() interface{} {
+	if h.IsNotification() {
+		return nil
+	}
+	var id interface{}
+	_ = json.Unmarshal(h.ID, &id)
+	return id
+}

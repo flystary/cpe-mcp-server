@@ -26,6 +26,7 @@ services:
     params:
       dst_cidr: "172.16.0.0/12"
       interface: "wg0"
+      
 
   # 阶段 4: 限制地址段使用
   acl:
