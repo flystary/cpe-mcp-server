@@ -1,6 +1,14 @@
 package static
 
-// StaticRouteSpec 纯数据模型（无逻辑）
+// Destination string
+// Netmask     string
+// Nexthop     string
+// Interface   string
+// Preference  int
+// Metric      int
+// Track       bool
+
+// StaticRouteSpec 纯数据模型
 type StaticRouteSpec struct {
 	Destination string `json:"destination"`
 	Netmask     string `json:"netmask"`

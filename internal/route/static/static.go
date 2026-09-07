@@ -3,8 +3,8 @@ package static
 import (
 	"context"
 	i "cpe-mcp-server/internal"
-	"cpe-mcp-server/internal/netutil"
 	route "cpe-mcp-server/internal/route"
+	"cpe-mcp-server/internal/util"
 	"cpe-mcp-server/pkg/vty"
 	"encoding/json"
 	"fmt"
@@ -22,14 +22,6 @@ var _ route.RouteHandler = (*Static)(nil)
 var _ i.Rollable = (*Static)(nil)
 
 type Static struct{}
-
-// Destination string
-// Netmask     string
-// Nexthop     string
-// Interface   string
-// Preference  int
-// Metric      int
-// Track       bool
 
 func NewStatic() route.RouteHandler { return &Static{} }
 
@@ -49,7 +41,6 @@ func (p *Static) Actions() []string {
 }
 
 func (s *Static) Validate(action string, args []byte) (map[string]any, error) {
-
 	var spec StaticRouteSpec
 	if err := json.Unmarshal(args, &spec); err != nil {
 		return nil, err
@@ -115,7 +106,7 @@ func (s *Static) Dispatch(ctx context.Context, action string, args []byte) error
 
 // apply 执行静态路由下刷
 func (s *Static) apply(ctx context.Context, spec StaticRouteSpec) error {
-	cidr, network, err := netutil.GetCidrAndNetwork(spec.Destination, spec.Netmask)
+	cidr, network, err := util.GetCidrAndNetwork(spec.Destination, spec.Netmask)
 	if err != nil {
 		return err
 	}
@@ -134,9 +125,9 @@ func (s *Static) apply(ctx context.Context, spec StaticRouteSpec) error {
 	if strings.ToLower(target) == "null0" {
 		spec.Track = false
 		finalNexthop = "null0"
-	} else if netutil.IsLogicalInterface(target) {
+	} else if util.IsLogicalInterface(target) {
 		spec.Track = false
-		realIface, err := netutil.FindRealInterface(target)
+		realIface, err := util.FindRealInterface(target)
 		if err != nil {
 			return err
 		}
@@ -148,7 +139,7 @@ func (s *Static) apply(ctx context.Context, spec StaticRouteSpec) error {
 
 	// 特殊网络接口（PPPoE）处理
 	if spec.Interface != "" && strings.HasPrefix(spec.Interface, "ppp") {
-		if ip, err := netutil.InterfaceToPppoe(spec.Interface); err == nil && ip != "" {
+		if ip, err := util.InterfaceToPppoe(spec.Interface); err == nil && ip != "" {
 			finalNexthop = ip
 		}
 	}
@@ -177,7 +168,7 @@ func (s *Static) apply(ctx context.Context, spec StaticRouteSpec) error {
 
 // remove 执行路由撤销
 func (s *Static) remove(ctx context.Context, spec StaticRouteSpec) error {
-	_, network, err := netutil.GetCidrAndNetwork(spec.Destination, spec.Netmask)
+	_, network, err := util.GetCidrAndNetwork(spec.Destination, spec.Netmask)
 	if err != nil {
 		return err
 	}
@@ -191,7 +182,7 @@ func (s *Static) remove(ctx context.Context, spec StaticRouteSpec) error {
 		targetNexthop = spec.Nexthop
 	}
 
-	netmask, _ := netutil.ParseNetmaskToBits(spec.Netmask)
+	netmask, _ := util.ParseNetmaskToBits(spec.Netmask)
 	vtyCmds := []string{
 		"configure terminal",
 		fmt.Sprintf("no ip route %s/%d %s", spec.Destination, netmask, targetNexthop),
@@ -247,13 +238,20 @@ func (p *Static) List(ctx context.Context) (interface{}, error) {
 				}
 			}
 		}
-
-		results = append(results, map[string]interface{}{
-			"cidr":      cidr,
-			"nexthop":   nexthop,
-			"track":     track,
-			"interface": iface,
-			"status":    status,
+		/*
+			results = append(results, map[string]interface{}{
+				"cidr":      cidr,
+				"nexthop":   nexthop,
+				"track":     track,
+				"interface": iface,
+				"status":    status,
+			})
+		*/
+		results = append(results, StaticRouteSpec{
+			Destination: "",
+			Nexthop:     nexthop,
+			Track:       true,
+			Interface:   iface,
 		})
 	}
 

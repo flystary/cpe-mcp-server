@@ -78,7 +78,7 @@ func (n *SchemaNode) AddObject(name, desc string, required bool) *SchemaNode {
 	return subObj
 }
 
-// AddArray 🛠️【完全体修正】：支持深度下钻数组内部的对象模板
+// AddArray 支持深度下钻数组内部的对象模板
 func (n *SchemaNode) AddArray(name, desc string, itemNode *SchemaNode, required bool) *SchemaNode {
 	if n.Properties == nil {
 		n.Properties = make(map[string]*SchemaNode)
@@ -92,7 +92,7 @@ func (n *SchemaNode) AddArray(name, desc string, itemNode *SchemaNode, required 
 	// 关键建立双向绑定
 	arrNode := NewArrayNode(name, desc, itemNode)
 	arrNode.parent = n
-	itemNode.parent = arrNode // 核心：让模板的 End() 能够一路杀回 Array 节点
+	itemNode.parent = arrNode
 
 	n.Properties[name] = arrNode
 	if required {
