@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -95,11 +96,13 @@ func (s *Static) Dispatch(ctx context.Context, action string, args []byte) error
 		s.apply(ctx, spec)
 	case "remove":
 		s.remove(ctx, spec)
-	case "show":
-		s.show(ctx)
+	case "get":
+		s.get(ctx)
 	default:
 		return fmt.Errorf("unknown action: %s", action)
 	}
+
+	syscall.Sync()
 
 	return nil
 }
@@ -197,7 +200,7 @@ func (s *Static) remove(ctx context.Context, spec StaticRouteSpec) error {
 	return os.Remove(filepath.Join(cliConfDir, fmt.Sprintf("%s.%s", network, spec.Netmask)))
 }
 
-func (s *Static) show(ctx context.Context) error {
+func (s *Static) get(ctx context.Context) error {
 
 	fmt.Println("show static routes")
 	return nil
@@ -215,7 +218,7 @@ func (p *Static) List(ctx context.Context) (interface{}, error) {
 		return nil, err
 	}
 
-	var results []map[string]interface{}
+	var results []StaticRouteSpec
 	for _, file := range files {
 		if file.IsDir() {
 			continue
@@ -227,7 +230,7 @@ func (p *Static) List(ctx context.Context) (interface{}, error) {
 			continue
 		}
 
-		cidr, nexthop, track, iface := parts[0], parts[1], parts[2], parts[3]
+		cidr, nexthop, track_str, iface := parts[0], parts[1], parts[2], parts[3]
 
 		status := "inactive"
 		if entries, ok := routes[cidr]; ok {
@@ -247,11 +250,15 @@ func (p *Static) List(ctx context.Context) (interface{}, error) {
 				"status":    status,
 			})
 		*/
+		track, _ := strconv.ParseBool(track_str)
 		results = append(results, StaticRouteSpec{
 			Destination: "",
+			Netmask:     "",
 			Nexthop:     nexthop,
-			Track:       true,
 			Interface:   iface,
+			Metric:      1,
+			Track:       track,
+			Status:      status,
 		})
 	}
 
@@ -260,7 +267,7 @@ func (p *Static) List(ctx context.Context) (interface{}, error) {
 
 // Save 执行物理存储同步
 func (s *Static) Save(target string) error {
-	return syscall.Sync()
+	return nil
 }
 
 // Roll 实现配置回滚机制
